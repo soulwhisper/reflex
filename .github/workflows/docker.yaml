@@ -63,6 +63,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: CHECKPOINTS=english
           push: true
+          tags: ${{ steps.meta.outputs.tags }}
           provenance: true
           sbom: true
           labels: ${{ steps.meta.outputs.labels }}
