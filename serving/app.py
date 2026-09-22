@@ -1,21 +1,39 @@
-"""reflex serving: System-1 decisions over HTTP."""
+"""reflex serving: System-1 decisions over HTTP and MCP."""
 from __future__ import annotations
 
 import os
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .config import load_policies
+from .mcp_server import create_mcp_app
 
 POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
 CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]
 
-app = FastAPI(title="reflex", version="0.1.0")
 policies = load_policies(POLICIES_PATH)
+mcp_app = create_mcp_app()
 router = None  # laya Router, built at startup
 ready = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global router, ready
+    import laya
+
+    router = laya.Router(preload=CHECKPOINTS)
+    ready = True
+    # run the MCP session manager alongside the HTTP app
+    async with mcp_app.router.lifespan_context(mcp_app):
+        yield
+
+
+app = FastAPI(title="reflex", version="0.1.0", lifespan=lifespan)
+app.mount("/mcp", mcp_app)
 
 
 class DecideRequest(BaseModel):
@@ -27,15 +45,6 @@ class RawRequest(BaseModel):
     state: dict
     questions: dict
     model: str | None = None
-
-
-@app.on_event("startup")
-def startup() -> None:
-    global router, ready
-    import laya
-
-    router = laya.Router(preload=CHECKPOINTS)
-    ready = True
 
 
 @app.get("/healthz")

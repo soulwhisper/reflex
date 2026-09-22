@@ -1,8 +1,8 @@
-"""MCP server: expose routing policies as MCP tools (Streamable HTTP).
+"""MCP tools over Streamable HTTP, mountable into the FastAPI app.
 
-Mount point for MCP-native consumers (e.g. toolhive MCPServer CR). Each policy
-becomes one tool named after the policy, plus `reflex_decide` for raw
-question schemas.
+Exposes the routing policies as MCP tools for MCP-native consumers (e.g.
+toolhive MCPServer CR). Served in-process at /mcp by serving.app; can also
+run standalone (python -m serving.mcp_server, port 9001).
 """
 from __future__ import annotations
 
@@ -16,11 +16,11 @@ POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
 CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]
 
 policies = load_policies(POLICIES_PATH)
-mcp = FastMCP("reflex", host="0.0.0.0", port=int(os.environ.get("REFLEX_MCP_PORT", "9001")))
+mcp = FastMCP("reflex", streamable_http_path="/")
 _router = None
 
 
-def _get_router():
+def get_router():
     global _router
     if _router is None:
         import laya
@@ -31,7 +31,7 @@ def _get_router():
 
 def _decide(policy: str, text: str) -> dict:
     pol = policies[policy]
-    res = _get_router().predict({"text": text}, pol.question())
+    res = get_router().predict({"text": text}, pol.question())
     return {"policy": policy, "answer": res["answers"][policy], "routing": res.get("routing", {})}
 
 
@@ -56,7 +56,12 @@ def route_profile(text: str) -> dict:
 @mcp.tool()
 def reflex_decide(state: dict, questions: dict) -> dict:
     """Raw typed-question decision: pass a state and a question schema."""
-    return _get_router().predict(state, questions)
+    return get_router().predict(state, questions)
+
+
+def create_mcp_app():
+    """ASGI app serving MCP at the mount prefix."""
+    return mcp.streamable_http_app()
 
 
 if __name__ == "__main__":

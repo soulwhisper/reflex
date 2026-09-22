@@ -2,4 +2,4 @@ laya>=0.1.0
 fastapi>=0.115
 uvicorn[standard]>=0.30
 pyyaml>=6.0
-mcp>=1.0
+mcp>=1.0,<2  # v2 renamed FastMCP->MCPServer with API changes; pin v1 for now
