@@ -1,0 +1,5 @@
+laya>=0.1.0
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pyyaml>=6.0
+mcp>=1.0

@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reflex-policies
+data:
+  routes.yaml: |
+    mcp:
+      type: choice
+      instructions: Which MCP backend should handle this request?
+      criteria:
+        karakeep: bookmarks, saved articles, read-later items
+        hindsight: agent long-term memory and past conversations
+        netbox: infrastructure inventory, devices, IPs, racks
+        obsidian: personal knowledge base notes
+    tool:
+      type: choice
+      instructions: Which tool should be called to fulfill this request?
+      criteria:
+        search: full-text search over stored content
+        get: fetch one item by exact identifier
+        list: enumerate items with filters
+        create: store a new item
+    profile:
+      type: choice
+      instructions: Which agent profile should handle this message?
+      criteria:
+        ops: scheduled jobs, automation, infrastructure operations
+        chat: interactive human conversation
+        default: uncategorized or fallback work

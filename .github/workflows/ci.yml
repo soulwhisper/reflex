@@ -1,0 +1,39 @@
+---
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install -r requirements.txt pyyaml
+
+      - name: Compile check
+        run: python -m compileall serving
+
+      - name: Policy schema loads
+        run: |
+          python - <<'EOF'
+          from serving.config import load_policies
+          p = load_policies("policies/routes.yaml")
+          assert {"mcp", "tool", "profile"} <= set(p), p.keys()
+          for name, pol in p.items():
+              q = pol.question()
+              assert q[name]["type"] in {"choice", "score", "noul"}, name
+              assert q[name]["criteria"], name
+          print("policies OK:", sorted(p))
+          EOF
+
+      - name: Docker build (no weights)
+        run: docker build --build-arg CHECKPOINTS=english -t reflex:ci .

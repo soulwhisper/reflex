@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reflex
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reflex
+  template:
+    metadata:
+      labels:
+        app: reflex
+    spec:
+      containers:
+        - name: reflex
+          image: ghcr.io/soulwhisper/reflex:latest
+          ports:
+            - { containerPort: 9000, name: http }
+          env:
+            - name: REFLEX_POLICIES
+              value: /etc/reflex/routes.yaml
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { cpu: "2", memory: 2Gi }
+          readinessProbe:
+            httpGet: { path: /readyz, port: 9000 }
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet: { path: /healthz, port: 9000 }
+            periodSeconds: 30
+          volumeMounts:
+            - { name: policies, mountPath: /etc/reflex, readOnly: true }
+      volumes:
+        - name: policies
+          configMap:
+            name: reflex-policies
