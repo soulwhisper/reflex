@@ -34,7 +34,7 @@ jobs:
         run: pip install ruff
 
       - name: Run ruff
-        run: ruff check app
+        run: ruff check app finetune
 
   build:
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
         run: pip install -r requirements.txt pyyaml
 
       - name: Compile check
-        run: python -m compileall app
+        run: python -m compileall app finetune
 
       - name: Policy schema loads
         run: |

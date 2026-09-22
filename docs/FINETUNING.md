@@ -57,14 +57,17 @@ scrubbed with the platform's redaction rules before leaving the cluster.
 
 ### 3. Training
 
-Upstream RLCD notebook as the harness:
-<https://github.com/NandhaKishorM/laya/blob/main/notebooks/laya_finetune_typed_decisions_2xT4_kaggle.ipynb>
+Local scripted pipeline (ported from the upstream RLCD Kaggle notebook —
+[provenance](https://github.com/NandhaKishorM/laya/blob/main/notebooks/laya_finetune_typed_decisions_2xT4_kaggle.ipynb)):
+`finetune/` holds the stages (`preprocess.py` → `train.py` → `evaluate.py`
+→ optional `export_onnx.py`); see `finetune/README.md`.
 
 - Base: `laya` (English) for now; `laya-multilingual` when non-English
   traffic matters.
-- Hardware: 2×T4-class GPU suffices upstream; the homelab inference host or a
-  short cloud run. Small head-only fine-tune first; full fine-tune only if
-  head-only underperforms.
+- Hardware: `finetune/run_nvidia.sh` for CUDA hosts (2×T4-class suffices),
+  `finetune/run_k100ai.sh` for Hygon K100AI (DTK) hosts. Small head-only
+  fine-tune first (`--lr-encoder 0`); full fine-tune only if head-only
+  underperforms.
 - Holdout: 20% stratified, never seen by teacher or rules.
 
 ### 4. Calibration (mandatory)
