@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: reflex
-          image: ghcr.io/soulwhisper/reflex:latest
+          image: ghcr.io/soulwhisper/reflex:0.1.0
           ports:
             - { containerPort: 9000, name: http }
           env:
