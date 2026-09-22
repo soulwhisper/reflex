@@ -16,21 +16,86 @@ permissions:
   id-token: write # keyless cosign signing (Sigstore OIDC)
 
 concurrency:
-  # buildx updates the manifest atomically at the end, so cancelling a
-  # superseded run mid-build leaves no partial manifest.
+  # A cancelled run can leave untagged per-arch digests in GHCR (harmless —
+  # no manifest points at them); the merge job updates tags atomically.
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Native runners per arch (ubuntu-24.04-arm is free for public repos):
+  # no QEMU, ~85min emulated arm64 leg drops to minutes.
   build:
-    name: Build & push image (amd64 + arm64)
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (for arm64 builds)
-        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+
+      # Push by digest only — tagging happens in the merge job once all
+      # arch legs are done.
+      - name: Build & push (native, by digest, gha cache)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          build-args: CHECKPOINTS=english
+          outputs: type=image,"name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true"
+          provenance: true
+          sbom: true
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      - name: Export digest
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge manifest, sign, scan
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -55,20 +120,21 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
 
-      - name: Build & push (multi-arch, gha cache)
-        id: build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          build-args: CHECKPOINTS=english
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          provenance: true
-          sbom: true
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create manifest index & push
+        working-directory: /tmp/digests
+        run: |
+          refs=""
+          for f in *; do refs="$refs ghcr.io/${GITHUB_REPOSITORY}@sha256:$f"; done
+          # shellcheck disable=SC2046
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") $refs
+
+      - name: Resolve index digest
+        id: index
+        run: |
+          ref=$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          digest=$(docker buildx imagetools inspect "$ref" --format '{{json .}}' | jq -r '.manifest.digest // empty')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Generate image digest summary
         run: |
@@ -78,14 +144,20 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.index.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v4.1.2
 
-      # Keyless signing of the pushed manifest by digest.
+      # Keyless signing of the merged index; fall back to the tag reference
+      # if digest resolution came back empty.
       - name: Sign image (cosign keyless, by digest)
-        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+        run: |
+          target="${{ steps.index.outputs.ref }}"
+          if [ -n "${{ steps.index.outputs.digest }}" ]; then
+            target="${target%:*}@${{ steps.index.outputs.digest }}"
+          fi
+          cosign sign --yes "$target"
 
       # Blocking scan of the published image on releases only; the image is
       # already pushed and signed by this point, so a failure means triage
