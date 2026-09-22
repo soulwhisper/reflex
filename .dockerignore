@@ -1,0 +1,21 @@
+# Keep the Docker build context lean (context = repo root; Dockerfile lives
+# in docker/). Only affects what is sent to the builder, not image contents.
+.git
+.github
+.gitignore
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+.venv
+venv
+*.md
+!README.md
+docs
+finetune
+*.egg-info
+build
+dist
+models
+.hf
+.omp
