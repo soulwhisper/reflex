@@ -58,7 +58,7 @@ way `laya-typed-decisions` derives from `laya`.
 
 ```bash
 pip install -r requirements.txt
-uvicorn serving.app:app --host 0.0.0.0 --port 9000
+uvicorn app.server:app --host 0.0.0.0 --port 9000
 ```
 
 ```bash

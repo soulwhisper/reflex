@@ -1,0 +1,39 @@
+# Release Please — automated releases from conventional commits.
+# Same setup as soulwhisper/mcp-guardrails.
+#
+# On every push to main, release-please maintains a release PR (changelog +
+# version bumps in app/server.py and deploy/k8s/deployment.yaml via
+# extra-files). Merging it creates the GitHub Release and tag; the tag push
+# triggers docker-publish.yml.
+#
+# Token: GitHub App token (repo-butler), NOT GITHUB_TOKEN — GITHUB_TOKEN
+# suppresses downstream workflow triggers (CI on the release PR, and
+# docker-publish on the tag push). Secrets APP_CLIENT_ID / APP_PRIVATE_KEY
+# are already set on this repo.
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

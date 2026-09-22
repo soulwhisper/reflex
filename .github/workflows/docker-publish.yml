@@ -1,0 +1,120 @@
+# Build and publish the container image to GHCR. Mirrors
+# soulwhisper/mcp-guardrails' docker-publish.yml conventions.
+#
+# Triggers:
+#   - push of version tags    -> semver tags (0.1.0, 0.1) + "latest"
+#   - workflow_dispatch       -> manual one-off image (tags from metadata-action)
+#
+# Push-to-main is deliberately omitted: release-please tag pushes cover every
+# release; use workflow_dispatch for a one-off `main` image.
+#
+# The image bakes the laya checkpoint at build time (CHECKPOINTS build-arg,
+# ~808 MB for english), so builds are slow and large by design — the image IS
+# the model artifact.
+#
+# Supply chain: buildx publishes SLSA provenance and an SBOM attestation, and
+# the pushed manifest is signed keylessly with cosign (Sigstore OIDC) by
+# digest. Verify with:
+#   cosign verify ghcr.io/soulwhisper/reflex@<digest> \
+#     --certificate-identity-regexp 'https://github.com/soulwhisper/reflex' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+name: Docker publish
+
+on:
+  push:
+    tags: ["v*", "[0-9]*"]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write # keyless cosign signing (Sigstore OIDC)
+
+concurrency:
+  # buildx updates the manifest atomically at the end, so cancelling a
+  # superseded run mid-build leaves no partial manifest.
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & push image (amd64 + arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for arm64 builds)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags & labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # On push of v0.1.0: tags "0.1.0", "0.1", "latest" (bare 0.1.0 too)
+          # On workflow_dispatch from main: tag "main"
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+
+
+      - name: Build & push (multi-arch, gha cache)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          build-args: CHECKPOINTS=english
+          push: true
+          provenance: true
+          sbom: true
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate image digest summary
+        run: |
+          echo "## Published image" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      # Keyless signing of the pushed manifest by digest.
+      - name: Sign image (cosign keyless, by digest)
+        run: cosign sign --yes ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+
+      # Blocking scan of the published image on releases only; the image is
+      # already pushed and signed by this point, so a failure means triage
+      # and either patch or yank the tag.
+      - name: Trivy scan of the published image
+        if: github.ref_type == 'tag'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:latest
+          format: table
+          exit-code: "1" # fail the release on CRITICAL/HIGH findings
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
