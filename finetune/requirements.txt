@@ -1,0 +1,12 @@
+# Fine-tune pipeline deps — training/export hosts only, NOT the runtime image
+# (the image installs the root requirements.txt).
+laya>=0.3.5
+torch>=2.0.0
+transformers>=4.48.0
+safetensors>=0.4.0
+huggingface_hub>=0.20.0
+numpy>=1.20.0
+pyyaml>=6.0
+# export_onnx.py only:
+onnx>=1.16
+onnxruntime>=1.18
