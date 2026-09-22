@@ -64,4 +64,4 @@ jobs:
           EOF
 
       - name: Docker build (baked weights)
-        run: docker build -f docker/Dockerfile -t reflex:ci .
+        run: docker build -t reflex:ci .

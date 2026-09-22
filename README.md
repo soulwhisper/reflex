@@ -66,7 +66,7 @@ curl -s localhost:9000/decide/mcp -d '{"state": {"text": "what did I bookmark ab
 # {"policy":"mcp","answer":{"choice":"karakeep","probability":0.91},...}
 ```
 
-Docker / Kubernetes: see [docker/Dockerfile](docker/Dockerfile) and [deploy/k8s](deploy/k8s/).
+Docker / Kubernetes: see [Dockerfile](Dockerfile) and [deploy/k8s](deploy/k8s/).
 
 ## Fine-tuning is a production feature
 
