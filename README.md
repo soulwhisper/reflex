@@ -1,6 +1,6 @@
 # reflex
 
-[![CI](https://github.com/soulwhisper/reflex/actions/workflows/ci.yml/badge.svg)](https://github.com/soulwhisper/reflex/actions/workflows/ci.yml)
+[![CI](https://github.com/soulwhisper/reflex/actions/workflows/ci.yaml/badge.svg)](https://github.com/soulwhisper/reflex/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 A **System-1 decision layer** for homelab and self-hosted platforms: give it a
