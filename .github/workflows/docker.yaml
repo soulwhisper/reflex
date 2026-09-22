@@ -1,24 +1,6 @@
-# Build and publish the container image to GHCR. Mirrors
-# soulwhisper/mcp-guardrails' docker-publish.yml conventions.
-#
-# Triggers:
-#   - push of version tags    -> semver tags (0.1.0, 0.1) + "latest"
-#   - workflow_dispatch       -> manual one-off image (tags from metadata-action)
-#
-# Push-to-main is deliberately omitted: release-please tag pushes cover every
-# release; use workflow_dispatch for a one-off `main` image.
-#
-# The image bakes the laya checkpoint at build time (CHECKPOINTS build-arg,
-# ~808 MB for english), so builds are slow and large by design — the image IS
-# the model artifact.
-#
-# Supply chain: buildx publishes SLSA provenance and an SBOM attestation, and
-# the pushed manifest is signed keylessly with cosign (Sigstore OIDC) by
-# digest. Verify with:
-#   cosign verify ghcr.io/soulwhisper/reflex@<digest> \
-#     --certificate-identity-regexp 'https://github.com/soulwhisper/reflex' \
-#     --certificate-oidc-issuer https://token.actions.githubusercontent.com
-name: Docker publish
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: docker
 
 on:
   push:
@@ -72,7 +54,6 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
-
 
       - name: Build & push (multi-arch, gha cache)
         id: build

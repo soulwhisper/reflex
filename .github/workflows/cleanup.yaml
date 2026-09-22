@@ -1,0 +1,57 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: cleanup
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  cleanup_runs:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Generate Token
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Cleanup workflow stale runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: "${{ steps.app-token.outputs.token }}"
+          repository: "${{ github.repository }}"
+          retain_days: "0"
+          keep_minimum_runs: "0"
+          delete_run_by_conclusion_pattern: "cancelled,skipped"
+
+      - name: Cleanup workflow success runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: "${{ steps.app-token.outputs.token }}"
+          repository: "${{ github.repository }}"
+          retain_days: "0"
+          keep_minimum_runs: "5"
+          delete_run_by_conclusion_pattern: "success"
+
+      - name: Cleanup workflow failure runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: "${{ steps.app-token.outputs.token }}"
+          repository: "${{ github.repository }}"
+          retain_days: "0"
+          keep_minimum_runs: "1"
+          delete_run_by_conclusion_pattern: "action_required,failure"
+
+  workflow-keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1

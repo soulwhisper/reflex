@@ -1,5 +1,6 @@
 ---
-name: CI
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: ci
 
 on:
   pull_request:
