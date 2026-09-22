@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>soulwhisper/renovate-config"],
+  "packageRules": [
+    {
+      // Base-image bumps are build plumbing, not code changes — CI green is
+      // the whole verification. Commit as `ci` so release-please keeps them
+      // out of the changelog and never cuts a release for them.
+      "matchManagers": ["dockerfile"],
+      "semanticCommitType": "ci"
+    }
+  ]
+}

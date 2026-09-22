@@ -1,4 +1,52 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Virtual envs
 .venv/
+venv/
+env/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Models — never commit downloaded weights; the image bakes them at build
+# time and developers let HF cache them under ~/.cache/huggingface.
+models/
+*.bin
+*.safetensors
+*.onnx
 .hf/
+
+# Docker
+*.tar
+
+# OS
+Thumbs.db
+
+# Local dev tooling (mise, uv, oh-my-pi) — per-developer, never committed.
+.mise.toml
+uv.lock
+.python-version
+pyvenv.cfg
+.omp/
