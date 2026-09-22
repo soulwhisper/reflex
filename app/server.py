@@ -1,4 +1,4 @@
-"""reflex serving: System-1 decisions over HTTP and MCP."""
+"""reflex app: System-1 decisions over HTTP and MCP."""
 from __future__ import annotations
 
 import os
@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .config import load_policies
-from .mcp_server import create_mcp_app
+from .mcp import create_mcp_app
 
 POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
 CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]

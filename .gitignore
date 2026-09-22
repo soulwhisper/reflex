@@ -38,6 +38,10 @@ models/
 *.onnx
 .hf/
 
+# Fine-tune datasets are artifacts (traffic-derived); only .gitkeep is committed.
+finetune/datasets/*.jsonl
+finetune/datasets/*.sha256
+
 # Docker
 *.tar
 

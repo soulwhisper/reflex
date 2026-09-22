@@ -12,6 +12,10 @@ One JSONL per policy, one decision per line:
 {"state": {"text": "what did I bookmark about cilium"}, "policy": "mcp", "label": "karakeep"}
 ```
 
+Datasets land in `datasets/` (one `<policy>.jsonl` per policy, plus the
+`<policy>.jsonl.sha256` receipt at packaging time). Datasets are artifacts,
+not source — keep raw traffic-derived files out of git.
+
 Sources (all collectable from platform logs): shadow-mode `/decide` logs joined
 with the route actually taken; agent/tool-call logs; teacher-LLM labels for
 unlabeled traffic.

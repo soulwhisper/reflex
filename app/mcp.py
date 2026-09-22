@@ -1,8 +1,8 @@
 """MCP tools over Streamable HTTP, mountable into the FastAPI app.
 
 Exposes the routing policies as MCP tools for MCP-native consumers (e.g.
-toolhive MCPServer CR). Served in-process at /mcp by serving.app; can also
-run standalone (python -m serving.mcp_server, port 9001).
+toolhive MCPServer CR). Served in-process at /mcp by app.server; can also
+run standalone (python -m app.mcp).
 """
 from __future__ import annotations
 

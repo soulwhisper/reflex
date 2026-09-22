@@ -2,7 +2,7 @@
 # Same setup as soulwhisper/mcp-guardrails.
 #
 # On every push to main, release-please maintains a release PR (changelog +
-# version bumps in serving/app.py and deploy/k8s/deployment.yaml via
+# version bumps in app/server.py and deploy/k8s/deployment.yaml via
 # extra-files). Merging it creates the GitHub Release and tag; the tag push
 # triggers docker-publish.yml.
 #

@@ -33,7 +33,7 @@ jobs:
         run: pip install ruff
 
       - name: Run ruff
-        run: ruff check serving
+        run: ruff check app
 
   build:
     runs-on: ubuntu-latest
@@ -48,12 +48,12 @@ jobs:
         run: pip install -r requirements.txt pyyaml
 
       - name: Compile check
-        run: python -m compileall serving
+        run: python -m compileall app
 
       - name: Policy schema loads
         run: |
           python - <<'EOF'
-          from serving.config import load_policies
+          from app.config import load_policies
           p = load_policies("policies/routes.yaml")
           assert {"mcp", "tool", "profile"} <= set(p), p.keys()
           for name, pol in p.items():
@@ -63,5 +63,5 @@ jobs:
           print("policies OK:", sorted(p))
           EOF
 
-      - name: Docker build (no weights)
-        run: docker build --build-arg CHECKPOINTS=english -t reflex:ci .
+      - name: Docker build (baked weights)
+        run: docker build -f docker/Dockerfile -t reflex:ci .

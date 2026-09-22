@@ -58,7 +58,7 @@ way `laya-typed-decisions` derives from `laya`.
 
 ```bash
 pip install -r requirements.txt
-uvicorn serving.app:app --host 0.0.0.0 --port 9000
+uvicorn app.server:app --host 0.0.0.0 --port 9000
 ```
 
 ```bash
@@ -66,7 +66,7 @@ curl -s localhost:9000/decide/mcp -d '{"state": {"text": "what did I bookmark ab
 # {"policy":"mcp","answer":{"choice":"karakeep","probability":0.91},...}
 ```
 
-Docker / Kubernetes: see [Dockerfile](Dockerfile) and [deploy/k8s](deploy/k8s/).
+Docker / Kubernetes: see [docker/Dockerfile](docker/Dockerfile) and [deploy/k8s](deploy/k8s/).
 
 ## Fine-tuning is a production feature
 

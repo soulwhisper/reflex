@@ -2,7 +2,6 @@
   "packages": {
     ".": {
       "release-type": "python",
-      "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
       "changelog-sections": [
@@ -19,7 +18,7 @@
         { "type": "style", "section": "Styles" }
       ],
       "extra-files": [
-        "serving/app.py",
+        "app/server.py",
         "deploy/k8s/deployment.yaml"
       ]
     }

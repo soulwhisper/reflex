@@ -73,11 +73,13 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
 
+
       - name: Build & push (multi-arch, gha cache)
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: CHECKPOINTS=english
           push: true
