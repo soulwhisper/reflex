@@ -8,6 +8,17 @@
       // out of the changelog and never cuts a release for them.
       "matchManagers": ["dockerfile"],
       "semanticCommitType": "ci"
+    },
+    {
+      // All actions bumps in one tidy PR (shared semantic-commits preset
+      // already types them ci(github-action), so release-please ignores them
+      // and the release workflow skips the run). Auto-merged once CI is
+      // green. Majors excluded: a breaking action can take down the release
+      // pipeline itself — those stay one PR per action, manual.
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "groupName": "github-actions",
+      "automerge": true
     }
   ]
 }
