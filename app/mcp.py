@@ -8,16 +8,16 @@ from __future__ import annotations
 
 import os
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from .config import load_policies
 from .telemetry import decision_span, init_tracing
 
 POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
 CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]
-
 policies = load_policies(POLICIES_PATH)
-mcp = FastMCP("reflex", streamable_http_path="/")
+
+mcp = MCPServer("reflex")
 _router = None
 
 
@@ -63,10 +63,9 @@ def reflex_decide(state: dict, questions: dict) -> dict:
     """Raw typed-question decision: pass a state and a question schema."""
     return get_router().predict(state, questions)
 
-
 def create_mcp_app():
-    """ASGI app serving MCP at the mount prefix."""
-    return mcp.streamable_http_app()
+    """ASGI app serving MCP at the mount prefix (path moved here in mcp v2)."""
+    return mcp.streamable_http_app(streamable_http_path="/")
 
 
 if __name__ == "__main__":
