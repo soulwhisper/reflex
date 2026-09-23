@@ -1,0 +1,16 @@
+# Build context hygiene: only app/, policies/, requirements.txt are COPYed —
+# this file keeps local dirty contexts honest (CI checkouts are already clean).
+.git
+.github
+.ruff_cache
+**/__pycache__
+**/*.pyc
+.venv*
+model/
+finetune/build
+finetune/datasets
+*.egg-info
+.pytest_cache
+release-please-config.json
+.release-please-manifest.json
+renovate.json5

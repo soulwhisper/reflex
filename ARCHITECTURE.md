@@ -118,7 +118,9 @@ guarding is not.
 Validated end-to-end on an Intel N305 (no GPU): policy load → checkpoint
 preload → `/decide/{policy}` and `/decide` answers with routing metadata.
 
-- First calls per question shape: ~1–1.5 s; steady-state is lower. Inline
+- ONNX fp32 ≈ 9 s/decision, int8 ≈ 5 s (N305, 512-token static graph — the
+  export constant-folds seq_len, so short inputs pay full-length compute;
+  truly dynamic shapes need a dynamo-based re-export, see finetune/). Inline
   chat-lane gating stays out of scope, as designed.
 - One image bundles exactly one checkpoint — image size is the model size
   plus ~250 MB of runtime (onnxruntime + tokenizers), nothing else.
@@ -130,6 +132,6 @@ preload → `/decide/{policy}` and `/decide` answers with routing metadata.
   probability (karakeep 0.92), while an ops action against KB policies
   returns a spread with `confidence ≈ 0.02` — the honest "no route" signal
   callers should gate on.
-- Memory: ~1.5 GB resident for both published checkpoints; single-checkpoint
-  deployments halve that.
+- Memory (measured, warm): fp32 ≈ 2.4 GiB RSS → 3 Gi pod limit; int8
+  ≈ 0.75 GiB → 1 Gi limit. Single checkpoint per pod by design.
 - Two replicas max, only when a consumer moves onto a critical path.

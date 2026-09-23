@@ -78,9 +78,11 @@ deliberately NOT bundled: shadow data must come from the base we intend to
 fine-tune) — no torch, no transformers, no CUDA libs. That takes the image
 from ~5.4 GB (default PyPI
 torch wheel pulls the full nvidia stack) to **~2 GB** fp32, or **~800 MB**
-with `--build-arg MODEL_FILE=model_int8.onnx`. Inference is one forward pass
-per call; encode/decode mirrors `laya`'s contract exactly (temperature
-clamping included), so decisions are interchangeable with the torch path.
+with `--build-arg MODEL_FILE=model_int8.onnx` (measured RSS: fp32 ≈ 2.4 GiB
+after warm-up → size pods at ~3 Gi limit; int8 ≈ 0.75 GiB → ~1 Gi limit).
+Inference is one forward pass per call; encode/decode mirrors `laya`'s
+contract exactly (temperature clamping included), so decisions are
+interchangeable with the torch path.
 
 ```bash
 # default: tozp/laya-onnx fp32
