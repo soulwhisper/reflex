@@ -11,6 +11,7 @@ import os
 from mcp.server.fastmcp import FastMCP
 
 from .config import load_policies
+from .telemetry import decision_span, init_tracing
 
 POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
 CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]
@@ -31,8 +32,12 @@ def get_router():
 
 def _decide(policy: str, text: str) -> dict:
     pol = policies[policy]
-    res = get_router().predict({"text": text}, pol.question())
-    return {"policy": policy, "answer": res["answers"][policy], "routing": res.get("routing", {})}
+    model = ",".join(CHECKPOINTS)
+    with decision_span(policy, "mcp", f"route_{policy}", {"text": text}, model) as rec:
+        res = get_router().predict({"text": text}, pol.question())
+        answer = res["answers"][policy]
+        rec.record(answer)
+    return {"policy": policy, "answer": answer, "routing": res.get("routing", {})}
 
 
 @mcp.tool()
@@ -65,4 +70,5 @@ def create_mcp_app():
 
 
 if __name__ == "__main__":
+    init_tracing()
     mcp.run(transport="streamable-http")

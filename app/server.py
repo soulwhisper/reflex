@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from .config import load_policies
 from .mcp import create_mcp_app
+from .telemetry import decision_span, init_tracing, shutdown_tracing
 
 POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
 CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]
@@ -23,6 +24,7 @@ ready = False
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global router, ready
+    init_tracing()
     import laya
 
     router = laya.Router(preload=CHECKPOINTS)
@@ -30,7 +32,7 @@ async def lifespan(app: FastAPI):
     # run the MCP session manager alongside the HTTP app
     async with mcp_app.router.lifespan_context(mcp_app):
         yield
-
+    shutdown_tracing()
 
 app = FastAPI(title="reflex", version="0.1.0", lifespan=lifespan)
 app.mount("/mcp", mcp_app)
@@ -67,9 +69,12 @@ def decide(policy: str, req: DecideRequest) -> dict:
     if pol is None:
         raise HTTPException(404, f"unknown policy {policy!r}; have {sorted(policies)}")
     kwargs = {"model": req.model} if req.model else {}
+    model = req.model or ",".join(CHECKPOINTS)
     t0 = time.monotonic()
-    res = router.predict(req.state, pol.question(), **kwargs)
-    answer = res["answers"][policy]
+    with decision_span(policy, "http", policy, {"state": req.state}, model) as rec:
+        res = router.predict(req.state, pol.question(), **kwargs)
+        answer = res["answers"][policy]
+        rec.record(answer)
     return {
         "policy": policy,
         "answer": answer,
