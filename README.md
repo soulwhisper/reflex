@@ -84,6 +84,22 @@ Inference is one forward pass per call; encode/decode mirrors `laya`'s
 contract exactly (temperature clamping included), so decisions are
 interchangeable with the torch path.
 
+Measured (production nodes: Intel 13900H 6P+8E/96 GB; i3-N305 = dev box,
+conservative lower bound; details in [docs/EVALUATION.md](docs/EVALUATION.md)):
+
+| runtime | 13900H (cluster) | N305 (dev) | warm RSS | image |
+|---|---|---|---|---|
+| torch 0.3.0 (previous) | **0.3–0.6 s** (measured live, 2-CPU limit) | — | ~1.5 GiB | 5.36 GB |
+| ONNX fp32 (default) | ~1.5–3 s *(inferred)* | 9 s (measured) | 2.4 GiB → 3 Gi limit | ~2 GB |
+| ONNX int8 (build-arg) | ~1–1.7 s *(inferred)* | 5 s (measured) | 0.75 GiB → 1 Gi limit | ~800 MB |
+
+ONNX fp32 decisions are **bit-identical to the torch deployment** (4/4 cases,
+probabilities and confidence to 4 decimals). Current latency is bounded by
+the export's static 512-token graph, not the hardware — CPU is adequate for
+advisory/shadow traffic; inline high-QPS enforcement (~33 ms on the model
+card's T4) wants an accelerator (iGPU/OpenVINO, Apple-silicon host, or cloud
+burst).
+
 ```bash
 # default: tozp/laya-onnx fp32
 docker build -t reflex .

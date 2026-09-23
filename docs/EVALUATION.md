@@ -1,8 +1,8 @@
 # Evaluation
 
 Findings from the design/eval cycle that shaped this project. All claims were
-verified against live systems (home-ops cluster, HuggingFace model card, or
-local smoke tests on Intel N305 CPU).
+verified against live systems (home-ops cluster — Intel 13900H/96 GB nodes,
+HuggingFace model card, or local smoke tests on Intel N305 CPU).
 
 ## Model selection: why System-1 (`convaiinnovations/laya`)
 
@@ -49,6 +49,56 @@ later optimization, not a prerequisite.
 
 Latency verdict: fine for async routing (tool/KB/profile), **not** acceptable
 for inline chat-lane gating — which stays out of scope.
+
+## ONNX runtime equivalence & hardware benchmarks (2026-09-23)
+
+Measured during the v0.4.0 ONNX migration. **Production nodes are Intel
+13900H (6P+8E, 96 GB RAM); the i3-N305 figures below are the dev box — a
+conservative lower bound, not the deployment target.**
+
+### Decision fidelity: ONNX fp32 vs live torch deployment
+
+Same policies, same inputs, torch (0.3.0 pod, 13900H) vs the new ONNX path —
+choice, per-option probabilities and confidence **identical to 4 decimals on
+all cases**, plus batched multi-question calls (dynamic batch axis):
+
+| case | torch (live) | ONNX fp32 |
+|---|---|---|
+| `mcp`: "show me the cilium daemonset pods" | kubernetes 0.5498 / conf 0.1506 | identical |
+| `mcp`: "what did I bookmark about BGP" | fluxcd 0.2841 / conf 0.0031 (honest no-route) | identical |
+| `tool`: "list the pods that are not running" | pods_list 1.0 / conf 1.0 | identical |
+| `profile`: "hey good morning" | default 0.5054 / conf 0.1715 | identical |
+
+### Latency and footprint
+
+| runtime | 13900H (cluster) | N305 (dev box) | warm RSS | image |
+|---|---|---|---|---|
+| torch 0.3.0 (previous) | **0.3–0.6 s** (measured live, 2-CPU limit) | — | ~1.5 GiB | 5.36 GB |
+| ONNX fp32 (default) | ~1.5–3 s *(inferred)* | 9 s (measured) | 2.4 GiB → 3 Gi limit | ~2 GB |
+| ONNX int8 (build-arg) | ~1–1.7 s *(inferred)* | 5 s (measured) | 0.75 GiB → 1 Gi limit | ~800 MB |
+
+### Findings that shaped the release
+
+- **Static seq axis**: the export constant-folds seq_len at 512 (legacy
+  TorchScript exporter), so short inputs pay full-length compute; torch pads
+  to batch-max and is faster. marker/batch axes are truly dynamic (probed).
+  Truly dynamic shapes need a `dynamo=True` re-export — open follow-up.
+- **int8 is not free**: 2× faster and ¼ the size, but flipped 2/4 close-call
+  choices and inflated calibration (0.51 → 0.75 observed). fp32 stays
+  default; the shadow dataset feeds temperature refitting, so fidelity wins.
+- **`act` head saturated**: raw outputs ±4000, `act_probability` pins at 1.0
+  on every live answer in both runtimes. Model-quality issue for the
+  fine-tune path; consumers must not gate on it.
+- **96 GB nodes make fp32 sizing free**: int8's memory win is irrelevant on
+  the production hardware; 3 Gi fp32 pods are trivial.
+
+### Accelerator positioning
+
+CPU on 13900H is homelab-adequate for advisory/shadow traffic (requests per
+minute). Inline high-QPS enforcement (~33 ms/decision on the model card's
+T4) wants an accelerator: 13900H Iris Xe iGPU (OpenVINO path, unverified),
+an Apple-silicon host, or a cloud burst lane. No accelerator is required for
+the shadow → fine-tune cycle itself (training is already kaggle-T4-planned).
 
 ## Architecture decisions record
 

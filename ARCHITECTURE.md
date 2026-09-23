@@ -109,19 +109,23 @@ guarding is not.
 
 ## Cost tradeoffs (homelab)
 
-- CPU-only is the default: 200–500 ms/decision is invisible for tool/KB
-  routing and unacceptable only for inline chat-lane gating — which is
-  deliberately out of scope.
+- CPU-only is the default for advisory/shadow (requests per minute). Inline
+  high-QPS enforcement (~33 ms on the model card's T4) wants an accelerator
+  — see docs/EVALUATION.md for options and numbers.
 
 ### Measured on CPU (smoke-verified)
 
-Validated end-to-end on an Intel N305 (no GPU): policy load → checkpoint
-preload → `/decide/{policy}` and `/decide` answers with routing metadata.
+Production nodes are Intel 13900H (6P+8E, 96 GB); the i3-N305 numbers are
+the dev box — a conservative lower bound. Full tables and the ONNX-vs-torch
+equivalence evidence: docs/EVALUATION.md.
 
-- ONNX fp32 ≈ 9 s/decision, int8 ≈ 5 s (N305, 512-token static graph — the
-  export constant-folds seq_len, so short inputs pay full-length compute;
-  truly dynamic shapes need a dynamo-based re-export, see finetune/). Inline
-  chat-lane gating stays out of scope, as designed.
+- torch 0.3.0 (previous runtime): **0.3–0.6 s/decision, measured live on
+  13900H** at a 2-CPU limit.
+- ONNX fp32 ≈ 9 s, int8 ≈ 5 s on N305 (512-token static graph — the export
+  constant-folds seq_len, so short inputs pay full-length compute); on
+  13900H infer ~1.5–3 s / ~1–1.7 s. Truly dynamic shapes need a
+  dynamo-based re-export, see finetune/. Inline chat-lane gating stays out
+  of scope, as designed.
 - One image bundles exactly one checkpoint — image size is the model size
   plus ~250 MB of runtime (onnxruntime + tokenizers), nothing else.
 - At load, the package warns: `checkpoint ships temperatures outside [0.5, 5]
