@@ -68,6 +68,23 @@ curl -s localhost:9000/decide/mcp -d '{"state": {"text": "what did I bookmark ab
 
 Docker / Kubernetes: see [Dockerfile](Dockerfile) and [deploy/k8s](deploy/k8s/).
 
+## Decision tracing
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` (standard OTEL env vars) and every policy
+decision emits one span with `gen_ai.*` attributes — input, choice,
+probability, checkpoint — rendered natively as generations in langfuse or
+any OTLP backend. The SDK is inert when the endpoint is unset. Raw-schema
+calls (`/decide`, `reflex_decide`) are not traced: no policy label, varying
+schema, no dataset value.
+
+Shadow deployments MUST set `OTEL_TRACES_SAMPLER=always_on`. The SDK default
+(`parentbased_always_on`) drops spans under unsampled parents, and MCP
+front-proxies sample aggressively (toolhive: 5%) — that silently shrinks the
+shadow dataset to a biased sliver.
+
+This is the shadow-mode log source for step 1 below: spans out, export from
+your backend, distill, fine-tune.
+
 ## Fine-tuning is a production feature
 
 `reflex` treats fine-tuning as an operational stage, not research:
