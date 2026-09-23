@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/soulwhisper/reflex/compare/v0.1.0...v0.2.0) (2026-09-23)
+
+
+### Features
+
+* **finetune:** scripted RLCD pipeline with platform launchers and ONNX export ([e0979d7](https://github.com/soulwhisper/reflex/commit/e0979d76afe2d6c16638d40b1dba25d470714c6f))
+* **telemetry:** one OTEL span per policy decision, env-gated ([0d87125](https://github.com/soulwhisper/reflex/commit/0d8712574114785e332bd043be3c563ae01ee463))
+
 ## 0.1.0 (2026-09-22)
 
 
