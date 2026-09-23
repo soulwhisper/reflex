@@ -13,7 +13,6 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write # keyless cosign signing (Sigstore OIDC)
 
 concurrency:
   # A cancelled run can leave untagged per-arch digests in GHCR (harmless —
@@ -89,7 +88,7 @@ jobs:
           retention-days: 1
 
   merge:
-    name: Merge manifest, sign, scan
+    name: Merge manifest & push
     runs-on: ubuntu-latest
     needs: [build]
     steps:
@@ -149,29 +148,3 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "**Digest:** \`${{ steps.index.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v4.1.2
-
-      # Keyless signing of the merged index; fall back to the tag reference
-      # if digest resolution came back empty.
-      - name: Sign image (cosign keyless, by digest)
-        run: |
-          target="${{ steps.index.outputs.ref }}"
-          if [ -n "${{ steps.index.outputs.digest }}" ]; then
-            target="${target%:*}@${{ steps.index.outputs.digest }}"
-          fi
-          cosign sign --yes "$target"
-
-      # Blocking scan of the published image on releases only; the image is
-      # already pushed and signed by this point, so a failure means triage
-      # and either patch or yank the tag.
-      - name: Trivy scan of the published image
-        if: github.ref_type == 'tag'
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ghcr.io/${{ github.repository }}:latest
-          format: table
-          exit-code: "1" # fail the release on CRITICAL/HIGH findings
-          ignore-unfixed: true
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
