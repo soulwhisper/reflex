@@ -54,15 +54,18 @@ differ (`DIST_BACKEND=gloo` override if a DTK build rejects `nccl`):
 3. **`evaluate.py`** — holdout accuracy / ECE / Brier per policy and overall,
    optional `--baseline` delta. Promotion gates (`--gate`): accuracy gain
    ≥ +5 points over incumbent, ECE ≤ 0.10.
-4. **`export_onnx.py`** (optional optimization) — full-graph ONNX export
-   (backbone + decision head, dynamic batch/seq/markers), `--int8` dynamic
+4. **`export_onnx.py`** (release format) — full-graph ONNX export (backbone +
+   decision head, dynamic batch/seq/markers), optional `--int8` dynamic
    per-channel quantization, validation on holdout items with drift gates
-   (argmax agreement ≥ 0.99, max |Δp| ≤ 0.02).
+   (argmax agreement ≥ 0.99, max |Δp| ≤ 0.02). Emits the drop-in runtime
+   layout the release image bundles: `model.onnx` + `tokenizer.json` +
+   `rl_agent_config.json` (base reference: `tozp/laya-onnx`).
 
 ## Promotion
 
 - Checkpoint directory + `temperatures.json` + `manifest.json` receipts →
-  versioned OCI artifact; bake via `docker build --build-arg CHECKPOINTS=...`.
+  exported ONNX model dir; bake via `docker build --build-arg
+  MODEL_REPO=<your-hf-repo>` (optionally `MODEL_FILE=model_int8.onnx`).
 - Promote per policy: shadow → enforce; rollback = redeploy previous image.
 - Remaining gates from docs/FINETUNING.md apply: no per-class regression > 3
   points, one week of shadow-vs-incumbent agreement review.

@@ -89,9 +89,12 @@ A fine-tuned checkpoint promotes only if **all** hold:
 ### 6. Packaging & promotion
 
 - Checkpoint directory + `DATASET.jsonl.sha256` receipt + temperature map →
-  versioned OCI artifact (registry of choice).
-- Bake via `docker build --build-arg CHECKPOINTS=...`; tag image with the
-  checkpoint version (`0.2.0-ft1`, …).
+  `finetune/export_onnx.py` (validates drift, emits the drop-in runtime
+  layout: `model.onnx` + `tokenizer.json` + `rl_agent_config.json`).
+- Bake via `docker build --build-arg MODEL_REPO=<your-hf-repo>` (optionally
+  `MODEL_FILE=model_int8.onnx`); tag image with the checkpoint version
+  (`0.2.0-ft1`, …). The release image's base is `tozp/laya-onnx` — your
+  export replaces it at the same path.
 - Promote per policy: shadow → enforce; rollback = redeploy previous image.
 
 ## What we will NOT fine-tune

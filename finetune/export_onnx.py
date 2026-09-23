@@ -132,6 +132,11 @@ def main() -> None:
         print(f"  int8: {int8_path.stat().st_size / 1e6:.1f} MB")
         variants.append(int8_path)
 
+    # Make `out` a drop-in runtime model dir (tozp/laya-onnx layout): the
+    # release image's MODEL_REPO fetch and app.model.ONNXModel both expect
+    # tokenizer.json + rl_agent_config.json next to model.onnx.
+    materialize_model_dir(args.checkpoint, out)
+
     if args.validate_with:
         from items import load_items
 
@@ -146,6 +151,26 @@ def main() -> None:
                   f"-> {'OK' if ok else 'DRIFT'}")
         if failed and args.gate:
             sys.exit(1)
+
+
+def materialize_model_dir(checkpoint: str, out: Path) -> None:
+    """Copy tokenizer.json + rl_agent_config.json from the checkpoint into `out`."""
+    import shutil
+
+    from huggingface_hub import snapshot_download
+
+    model_dir = Path(checkpoint) if Path(checkpoint).is_dir() else Path(snapshot_download(checkpoint))
+    for src in (model_dir / "tokenizer" / "tokenizer.json", model_dir / "tokenizer.json"):
+        if src.is_file():
+            shutil.copy(src, out / "tokenizer.json")
+            break
+    else:
+        print(f"  WARNING: no tokenizer.json found in {model_dir} — model dir incomplete")
+    cfg = model_dir / "rl_agent_config.json"
+    if cfg.is_file():
+        shutil.copy(cfg, out / "rl_agent_config.json")
+    else:
+        print(f"  WARNING: no rl_agent_config.json in {model_dir} — temperatures will default to 1.0")
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ vector layer (embedding servers) and the generation layer (LLM gateways).
 ```
 consumer → /decide/{policy} {state}
          → policies/{policy}.yaml → typed question schema
-         → laya Router.preloaded[checkpoint]
+         → ONNX session (app.model.ONNXModel, bundled checkpoint)
          → {choice|score|noul, probability, routing metadata}
 ```
 
@@ -52,16 +52,23 @@ one source of truth, two consumption modes (runtime config → training format).
 
 ## Checkpoints
 
-| Checkpoint | Size | Use |
-|---|---|---|
-| `laya` (English, ModernBERT-large) | 808 MB | default |
-| `laya/multilingual` (mmBERT-base) | 647 MB | non-English traffic |
-| `laya/typed-decisions` | 808 MB | typed-workflow reference |
-| *your fine-tune* | — | produced by [finetune/](finetune/) |
+Release format is ONNX (`tozp/laya-onnx` layout: `model.onnx` +
+`tokenizer.json` + `rl_agent_config.json`), fetched at image build via
+`MODEL_REPO`/`MODEL_FILE` build args — never at request time.
 
-`Router(preload=True)` is mandatory: lazy loading costs 7–10 s per checkpoint
-switch; preloaded switching is sub-millisecond. Bake weights into the image or
-pull from an OCI registry at init — never at request time.
+| Checkpoint | Format | Size | Use |
+|---|---|---|---|
+| `tozp/laya-onnx` `model.onnx` (English, ModernBERT-large) | ONNX fp32 | 1.69 GB | default, exact vs torch reference |
+| `tozp/laya-onnx` `model_int8.onnx` | ONNX int8 dynamic | 424 MB | lean image (~800 MB total); per-output max rel. error ≤14.4% |
+| `tozp/laya-onnx` `model_fp16.onnx` | ONNX fp16 | 844 MB | middle (≤1.3%); ORT CPU upcasts internally, little speed gain |
+| *your fine-tune* | ONNX via `finetune/export_onnx.py` | — | same layout, build with `MODEL_REPO=<your-repo>` |
+
+The torch `Router`'s multi-checkpoint language dispatch is gone: one image
+bundles one checkpoint. Multi-language traffic means a second deployment
+with a multilingual export, not a runtime switch.
+
+Weights load once at startup (lifespan); `/readyz` stays down until the
+session is built.
 
 ## Serving
 
@@ -111,11 +118,12 @@ guarding is not.
 Validated end-to-end on an Intel N305 (no GPU): policy load → checkpoint
 preload → `/decide/{policy}` and `/decide` answers with routing metadata.
 
-- First calls per question shape: ~1–1.5 s; steady-state is lower. Inline
+- ONNX fp32 ≈ 9 s/decision, int8 ≈ 5 s (N305, 512-token static graph — the
+  export constant-folds seq_len, so short inputs pay full-length compute;
+  truly dynamic shapes need a dynamo-based re-export, see finetune/). Inline
   chat-lane gating stays out of scope, as designed.
-- `Router(preload=[...])` pulls tokenizer/config files for every checkpoint
-  in the family even when only one is preloaded — budget image size for all
-  of them.
+- One image bundles exactly one checkpoint — image size is the model size
+  plus ~250 MB of runtime (onnxruntime + tokenizers), nothing else.
 - At load, the package warns: `checkpoint ships temperatures outside [0.5, 5]
   … treat confidence from the affected buckets as uncalibrated`. Observed
   live; reinforces that temperature refit on your data is a production
@@ -124,6 +132,6 @@ preload → `/decide/{policy}` and `/decide` answers with routing metadata.
   probability (karakeep 0.92), while an ops action against KB policies
   returns a spread with `confidence ≈ 0.02` — the honest "no route" signal
   callers should gate on.
-- Memory: ~1.5 GB resident for both published checkpoints; single-checkpoint
-  deployments halve that.
+- Memory (measured, warm): fp32 ≈ 2.4 GiB RSS → 3 Gi pod limit; int8
+  ≈ 0.75 GiB → 1 Gi limit. Single checkpoint per pod by design.
 - Two replicas max, only when a consumer moves onto a critical path.

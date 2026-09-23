@@ -13,11 +13,11 @@ from .mcp import create_mcp_app
 from .telemetry import decision_span, init_tracing, shutdown_tracing
 
 POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
-CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]
+MODEL_DIR = os.environ.get("REFLEX_MODEL_DIR", "model")
 
 policies = load_policies(POLICIES_PATH)
 mcp_app = create_mcp_app()
-router = None  # laya Router, built at startup
+router = None  # ONNXModel, built at startup
 ready = False
 
 
@@ -25,9 +25,9 @@ ready = False
 async def lifespan(app: FastAPI):
     global router, ready
     init_tracing()
-    import laya
+    from .model import ONNXModel
 
-    router = laya.Router(preload=CHECKPOINTS)
+    router = ONNXModel(MODEL_DIR)
     ready = True
     # run the MCP session manager alongside the HTTP app
     async with mcp_app.router.lifespan_context(mcp_app):
@@ -40,13 +40,11 @@ app.mount("/mcp", mcp_app)
 
 class DecideRequest(BaseModel):
     state: dict
-    model: str | None = None  # explicit checkpoint override
 
 
 class RawRequest(BaseModel):
     state: dict
     questions: dict
-    model: str | None = None
 
 
 @app.get("/healthz")
@@ -57,8 +55,8 @@ def healthz() -> dict:
 @app.get("/readyz")
 def readyz() -> dict:
     if not ready:
-        raise HTTPException(503, "checkpoints loading")
-    return {"ready": True, "checkpoints": CHECKPOINTS}
+        raise HTTPException(503, "model loading")
+    return {"ready": True, "model": router.repo}
 
 
 @app.post("/decide/{policy}")
@@ -68,11 +66,9 @@ def decide(policy: str, req: DecideRequest) -> dict:
     pol = policies.get(policy)
     if pol is None:
         raise HTTPException(404, f"unknown policy {policy!r}; have {sorted(policies)}")
-    kwargs = {"model": req.model} if req.model else {}
-    model = req.model or ",".join(CHECKPOINTS)
     t0 = time.monotonic()
-    with decision_span(policy, "http", policy, {"state": req.state}, model) as rec:
-        res = router.predict(req.state, pol.question(), **kwargs)
+    with decision_span(policy, "http", policy, {"state": req.state}, router.repo) as rec:
+        res = router.predict(req.state, pol.question())
         answer = res["answers"][policy]
         rec.record(answer)
     return {
@@ -87,8 +83,7 @@ def decide(policy: str, req: DecideRequest) -> dict:
 def decide_raw(req: RawRequest) -> dict:
     if not ready:
         raise HTTPException(503, "checkpoints loading")
-    kwargs = {"model": req.model} if req.model else {}
     t0 = time.monotonic()
-    res = router.predict(req.state, req.questions, **kwargs)
+    res = router.predict(req.state, req.questions)
     res["latency_ms"] = round((time.monotonic() - t0) * 1000, 1)
     return res

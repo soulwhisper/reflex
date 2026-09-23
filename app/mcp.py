@@ -14,27 +14,27 @@ from .config import load_policies
 from .telemetry import decision_span, init_tracing
 
 POLICIES_PATH = os.environ.get("REFLEX_POLICIES", "policies/routes.yaml")
-CHECKPOINTS = [c.strip() for c in os.environ.get("REFLEX_CHECKPOINTS", "english").split(",") if c.strip()]
+MODEL_DIR = os.environ.get("REFLEX_MODEL_DIR", "model")
 policies = load_policies(POLICIES_PATH)
 
 mcp = MCPServer("reflex")
-_router = None
+_model = None
 
 
-def get_router():
-    global _router
-    if _router is None:
-        import laya
+def get_model():
+    global _model
+    if _model is None:
+        from .model import ONNXModel
 
-        _router = laya.Router(preload=CHECKPOINTS)
-    return _router
+        _model = ONNXModel(MODEL_DIR)
+    return _model
 
 
 def _decide(policy: str, text: str) -> dict:
     pol = policies[policy]
-    model = ",".join(CHECKPOINTS)
-    with decision_span(policy, "mcp", f"route_{policy}", {"text": text}, model) as rec:
-        res = get_router().predict({"text": text}, pol.question())
+    model = get_model()
+    with decision_span(policy, "mcp", f"route_{policy}", {"text": text}, model.repo) as rec:
+        res = model.predict({"text": text}, pol.question())
         answer = res["answers"][policy]
         rec.record(answer)
     return {"policy": policy, "answer": answer, "routing": res.get("routing", {})}
@@ -61,11 +61,24 @@ def route_profile(text: str) -> dict:
 @mcp.tool()
 def reflex_decide(state: dict, questions: dict) -> dict:
     """Raw typed-question decision: pass a state and a question schema."""
-    return get_router().predict(state, questions)
+    return get_model().predict(state, questions)
+
 
 def create_mcp_app():
-    """ASGI app serving MCP at the mount prefix (path moved here in mcp v2)."""
-    return mcp.streamable_http_app(streamable_http_path="/")
+    """ASGI app serving MCP at the mount prefix (path moved here in mcp v2).
+
+    mcp v2 enables DNS-rebinding protection by default; behind a proxy the
+    workload sees the proxy's Host header (service DNS), so declare it via
+    REFLEX_ALLOWED_HOSTS (comma-separated, host[:port] entries) or every
+    call 421s. Unset keeps the SDK's loopback-only default for local dev.
+    """
+    allowed = [h.strip() for h in os.environ.get("REFLEX_ALLOWED_HOSTS", "").split(",") if h.strip()]
+    kwargs = {}
+    if allowed:
+        from mcp.server.transport_security import TransportSecuritySettings
+
+        kwargs["transport_security"] = TransportSecuritySettings(allowed_hosts=allowed)
+    return mcp.streamable_http_app(streamable_http_path="/", **kwargs)
 
 
 if __name__ == "__main__":
