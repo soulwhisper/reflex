@@ -62,7 +62,7 @@ jobs:
       # the doc-style quoted form ("failed to parse ref push-by-digest=true")
       - name: Build & push (native, by digest, gha cache)
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platform }}
