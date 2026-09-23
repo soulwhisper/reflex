@@ -67,14 +67,22 @@ def reflex_decide(state: dict, questions: dict) -> dict:
 def create_mcp_app():
     """ASGI app serving MCP at the mount prefix (path moved here in mcp v2).
 
-    mcp v2 enables DNS-rebinding protection by default; behind a proxy the
-    workload sees the proxy's Host header (service DNS), so declare it via
-    REFLEX_ALLOWED_HOSTS (comma-separated, host[:port] entries) or every
-    call 421s. Unset keeps the SDK's loopback-only default for local dev.
+    Host-header protection (mcp v2): the SDK auto-enables DNS-rebinding
+    protection with a localhost-only allowlist when no settings are passed.
+    REFLEX_ALLOWED_HOSTS controls it:
+      - unset: SDK default (localhost-only — right for local dev)
+      - comma-separated host[:port] list: protection on, those hosts allowed
+      - "*": protection explicitly OFF — for proxy-fronted deploys where the
+        front (toolhive) dials dynamic endpoint IPs, so no static allowlist
+        can be correct. Only use behind a trusted in-cluster proxy.
     """
     allowed = [h.strip() for h in os.environ.get("REFLEX_ALLOWED_HOSTS", "").split(",") if h.strip()]
     kwargs = {}
-    if allowed:
+    if allowed == ["*"]:
+        from mcp.server.transport_security import TransportSecuritySettings
+
+        kwargs["transport_security"] = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    elif allowed:
         from mcp.server.transport_security import TransportSecuritySettings
 
         kwargs["transport_security"] = TransportSecuritySettings(allowed_hosts=allowed)
