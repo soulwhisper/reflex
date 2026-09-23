@@ -57,6 +57,9 @@ jobs:
 
       # Push by digest only — tagging happens in the merge job once all
       # arch legs are done.
+      # outputs must be ONE unquoted line: the action passes each line to
+      # buildx verbatim (no comma splitting), and buildx's CSV parser rejects
+      # the doc-style quoted form ("failed to parse ref push-by-digest=true")
       - name: Build & push (native, by digest, gha cache)
         id: build
         uses: docker/build-push-action@v6
@@ -64,7 +67,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           build-args: CHECKPOINTS=english
-          outputs: type=image,"name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true"
+          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
           provenance: true
           sbom: true
           labels: ${{ steps.meta.outputs.labels }}
