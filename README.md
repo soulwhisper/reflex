@@ -22,7 +22,7 @@ flowchart LR
         API["/decide (FastAPI)"]
         MCP["MCP server (Streamable HTTP)"]
         POL["policies/*.yaml → typed question schemas"]
-        RTR["laya Router(preload=True)"]
+        RTR["ONNX runtime (bundled typed-decision checkpoint)"]
     end
     GW --> API
     TH --> MCP
@@ -67,6 +67,25 @@ curl -s localhost:9000/decide/mcp -d '{"state": {"text": "what did I bookmark ab
 ```
 
 Docker / Kubernetes: see [Dockerfile](Dockerfile) and [deploy/k8s](deploy/k8s/).
+
+## Runtime: ONNX, no torch
+
+The release image runs **onnxruntime** against a bundled ONNX typed-decision
+checkpoint ([`tozp/laya-onnx`](https://huggingface.co/tozp/laya-onnx) layout:
+`model.onnx` + `tokenizer.json` + `rl_agent_config.json`) — no torch, no
+transformers, no CUDA libs. That takes the image from ~5.4 GB (default PyPI
+torch wheel pulls the full nvidia stack) to **~2 GB** fp32, or **~800 MB**
+with `--build-arg MODEL_FILE=model_int8.onnx`. Inference is one forward pass
+per call; encode/decode mirrors `laya`'s contract exactly (temperature
+clamping included), so decisions are interchangeable with the torch path.
+
+```bash
+# default: tozp/laya-onnx fp32
+docker build -t reflex .
+# lean variant, or your own fine-tuned export (see finetune/):
+docker build --build-arg MODEL_FILE=model_int8.onnx -t reflex .
+docker build --build-arg MODEL_REPO=<your-hf-repo> -t reflex .
+```
 
 ## Decision tracing
 
