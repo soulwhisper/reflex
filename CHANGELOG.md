@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/soulwhisper/reflex/compare/v0.3.0...v0.4.0) (2026-09-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **runtime:** ONNX release format (tozp/laya-onnx), torch stack dropped ([#18](https://github.com/soulwhisper/reflex/issues/18))
+
+### Features
+
+* **runtime:** ONNX release format (tozp/laya-onnx), torch stack dropped ([#18](https://github.com/soulwhisper/reflex/issues/18)) ([546eb00](https://github.com/soulwhisper/reflex/commit/546eb0055ca6f4d0736cdd8c2105f85825379be9))
+
 ## [0.3.0](https://github.com/soulwhisper/reflex/compare/v0.2.0...v0.3.0) (2026-09-23)
 
 
