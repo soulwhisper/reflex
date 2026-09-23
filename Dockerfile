@@ -1,5 +1,7 @@
-# Release format: ONNX runtime + a bundled typed-decision checkpoint
-# (tozp/laya-onnx layout: model.onnx + tokenizer.json + rl_agent_config.json).
+# Release format: ONNX runtime + the bundled English base checkpoint
+# (tozp/laya-onnx repo root: model.onnx + tokenizer.json + rl_agent_config.json;
+# the separately-tuned laya-typed-decisions artifact is NOT bundled — shadow
+# data must come from the English base we intend to fine-tune).
 # No torch/transformers at runtime — the default PyPI torch wheel alone added
 # ~5 GB of CUDA libs on a CPU-only deployment; this image is ~2 GB (fp32) or
 # ~800 MB (MODEL_FILE=model_int8.onnx). Fine-tuned checkpoints take the same

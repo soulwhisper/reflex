@@ -1,4 +1,4 @@
-"""ONNX runtime for laya typed-decision checkpoints (tozp/laya-onnx layout).
+"""ONNX runtime for laya System-1 checkpoints (tozp/laya-onnx layout).
 
 Replaces the torch stack (laya.Router) with a single onnxruntime session:
 ModernBERT backbone + decision head exported as one graph
