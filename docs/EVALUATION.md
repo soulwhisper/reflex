@@ -74,7 +74,7 @@ all cases**, plus batched multi-question calls (dynamic batch axis):
 | runtime | 13900H (cluster) | N305 (dev box) | warm RSS | image |
 |---|---|---|---|---|
 | torch 0.3.0 (previous) | **0.3–0.6 s** (measured live, 2-CPU limit) | — | ~1.5 GiB | 5.36 GB |
-| ONNX fp32 (default) | ~1.5–3 s *(inferred)* | 9 s (measured) | 2.4 GiB → 3 Gi limit | ~2 GB |
+| ONNX fp32 (default) | **~1.0 s** (measured live 2026-09-25, see spot-check below) | 9 s (measured) | 2.4 GiB → 3 Gi limit | ~2 GB |
 | ONNX int8 (build-arg) | ~1–1.7 s *(inferred)* | 5 s (measured) | 0.75 GiB → 1 Gi limit | ~800 MB |
 
 ### Findings that shaped the release
@@ -99,6 +99,52 @@ minute). Inline high-QPS enforcement (~33 ms/decision on the model card's
 T4) wants an accelerator: 13900H Iris Xe iGPU (OpenVINO path, unverified),
 an Apple-silicon host, or a cloud burst lane. No accelerator is required for
 the shadow → fine-tune cycle itself (training is already kaggle-T4-planned).
+
+## Production-policy spot-check (2026-09-25, live v0.4.1)
+
+First measurement against the **live seeded policies** (2026-09-23 seed from
+the internal-ro tool surface: mcp ∈ {grafana, fluxcd, kubernetes,
+victoria-logs}, profile ∈ {ops, chat, default}), served by the 2-CPU-limited
+ONNX fp32 pod on 13900H.
+
+### Latency (server-reported `latency_ms`, warm)
+
+| policy | n | min | median | max |
+|---|---|---|---|---|
+| `mcp` | 12 | 0.997 s | **1.013 s** | 1.026 s |
+| `profile` | 5 | 0.888 s | **0.896 s** | 1.005 s |
+
+Replaces the earlier inferred 1.5–3 s for fp32 on 13900H. The tight spread
+confirms the static 512-token graph bounds latency — input length barely
+moves it. torch (0.3–0.6 s) stays ~2–3× faster on the same 2-CPU budget.
+
+### Accuracy
+
+- **Clear-cut queries: 12/12 top-1 correct** (8 mcp across all 4 backends,
+  4 profile across ops/chat). Profile separation is strong
+  (confidence 0.34–0.82).
+- **Borderline mcp routes separate weakly**: correct top-1 but confidence
+  0.06–0.13 (e.g. fluxcd 0.458/conf 0.079, kubernetes 0.44/conf 0.061) —
+  the base checkpoint's unfit temperatures, exactly the documented ECE
+  problem.
+- **Vague / out-of-policy asks degrade safely**: near-uniform spread with
+  confidence 0.01–0.02 ("check the status of the thing" → 4-way split;
+  a bookmarks query whose backend is not in the live policy → spread,
+  conf 0.018). Honest no-route signal, no forced picks.
+
+### Verdict: pre-fine-tune is NOT tolerable for enforcement
+
+Tolerable today: advisory + shadow traffic (what the deployment does).
+**Not** tolerable, measured:
+
+- gating on borderline routes — confidence 0.06 on a correct pick is a
+  coin-flip away from a misroute;
+- inline/high-QPS lanes — ~1 s/decision on 2 CPU cores, static graph;
+- gating on `act_probability` — the `act` head stays saturated at 1.0.
+
+Enforcement waits for a fine-tuned + temperature-refit checkpoint promoted
+through the shadow → distill → fine-tune → repackage cycle. An accelerator
+is required additionally, not instead.
 
 ## Architecture decisions record
 
