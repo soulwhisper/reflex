@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/soulwhisper/reflex/compare/v0.4.1...v0.5.0) (2026-09-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **github-action:** Update GitHub Artifact Actions (major) ([#21](https://github.com/soulwhisper/reflex/issues/21))
+
+### Documentation
+
+* **evaluation:** measured fp32 cluster latency + production-policy accuracy spot-check ([#22](https://github.com/soulwhisper/reflex/issues/22)) ([d535c3d](https://github.com/soulwhisper/reflex/commit/d535c3d1b991bc97ffea357f8ccae898d06c4344))
+
+
+### Continuous Integration
+
+* **github-action:** Update GitHub Artifact Actions (major) ([#21](https://github.com/soulwhisper/reflex/issues/21)) ([d78df93](https://github.com/soulwhisper/reflex/commit/d78df93dd53ef03e955527a5a8e9660286621d85))
+
 ## [0.4.1](https://github.com/soulwhisper/reflex/compare/v0.4.0...v0.4.1) (2026-09-23)
 
 
