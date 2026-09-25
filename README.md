@@ -53,6 +53,12 @@ way `laya-typed-decisions` derives from `laya`.
 - **Not an LLM** — it cannot chat, summarize, or generate anything.
 - **Not a guardrail** — never sits in a deny path; deny-path scanning belongs
   to fail-closed sidecars (e.g. mcp-guardrails).
+- **Not enforceable pre-fine-tune** — the bundled base checkpoint is
+  advisory/shadow-only. Live measurements (2026-09-25, see
+  [docs/EVALUATION.md](docs/EVALUATION.md)): correct top-1 on clear routes,
+  but borderline confidence is far below enforcement grade and CPU latency
+  is ~1 s/decision. Do not gate traffic on it until a fine-tuned,
+  temperature-refit checkpoint is promoted.
 
 ## Quickstart
 
@@ -90,7 +96,7 @@ conservative lower bound; details in [docs/EVALUATION.md](docs/EVALUATION.md)):
 | runtime | 13900H (cluster) | N305 (dev) | warm RSS | image |
 |---|---|---|---|---|
 | torch 0.3.0 (previous) | **0.3–0.6 s** (measured live, 2-CPU limit) | — | ~1.5 GiB | 5.36 GB |
-| ONNX fp32 (default) | ~1.5–3 s *(inferred)* | 9 s (measured) | 2.4 GiB → 3 Gi limit | ~2 GB |
+| ONNX fp32 (default) | **~1.0 s** (measured live 2026-09-25, 2-CPU limit) | 9 s (measured) | 2.4 GiB → 3 Gi limit | ~2 GB |
 | ONNX int8 (build-arg) | ~1–1.7 s *(inferred)* | 5 s (measured) | 0.75 GiB → 1 Gi limit | ~800 MB |
 
 ONNX fp32 decisions are **bit-identical to the torch deployment** (4/4 cases,
