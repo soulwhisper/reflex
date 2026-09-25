@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/soulwhisper/reflex/compare/v0.4.0...v0.4.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **mcp:** allow disabling host check for proxy-fronted deploys ([2777ab0](https://github.com/soulwhisper/reflex/commit/2777ab027288a38affd3c0932f7294a68a5b7a5e))
+
+
+### Documentation
+
+* correct benchmark hardware context (cluster = 13900H/96GB, N305 = dev box) ([c746fa4](https://github.com/soulwhisper/reflex/commit/c746fa4cf41504e45345ea5b377cb56784a31921))
+
 ## [0.4.0](https://github.com/soulwhisper/reflex/compare/v0.3.0...v0.4.0) (2026-09-23)
 
 
