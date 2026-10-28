@@ -10,7 +10,7 @@
 ARG MODEL_REPO=tozp/laya-onnx
 ARG MODEL_FILE=model.onnx
 
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS base
+FROM python:3.15-slim@sha256:94d3426f1def7db4a106a232ac121bfd975393e5dfd40a619b955fae45fe7913 AS base
 
 WORKDIR /app
 COPY requirements.txt .
